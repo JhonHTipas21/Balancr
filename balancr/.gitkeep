@@ -11,3 +11,4 @@ docs: improve readability of pydantic discrepancy case schema
 style: apply consistent trailing commas in json payloads
 docs: document offline hash embedding strategy in store module
 refactor: standardize logging string prefixes for cli outputs
+docs: add module level docstring to api router components
