@@ -1,1 +1,2 @@
 docs: format api models with black standard conventions
+refactor: extract redundant configuration setup to centralized block
