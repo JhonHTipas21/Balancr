@@ -11,6 +11,11 @@ from balancr.reporting.generator import ReconciliationReportGenerator
 from balancr.canonical import ReconciliationStatus
 
 def main():
+    """
+    Main entry point for the Balancr autonomous reconciliation runner.
+    Ingests data, runs three-way matching, dispatches LLM anomaly analysis,
+    triggers alerts, and outputs Markdown and PDF summary reports.
+    """
     # Load environment variables from .env
     load_dotenv()
 
