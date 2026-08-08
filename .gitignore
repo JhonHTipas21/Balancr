@@ -50,6 +50,10 @@ chroma_data/
 *.db
 *.sqlite
 
+# Reports
+reports/
+
+
 # OS files
 .DS_Store
 .DS_Store?
