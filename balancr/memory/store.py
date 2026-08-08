@@ -1,7 +1,29 @@
 import os
+import hashlib
 from typing import List, Dict, Any, Optional
 import chromadb
+from chromadb.api.types import Documents, Embeddings
 from balancr.canonical import DiscrepancyCase
+
+class SimpleHashEmbeddingFunction:
+    """
+    100% offline, lightweight hashing-based embedding function.
+    Eliminates downloading heavy models from Hugging Face during test/runs.
+    """
+    def __call__(self, input: Documents) -> Embeddings:
+        embeddings = []
+        for doc in input:
+            words = doc.lower().split()
+            vec = [0.0] * 128
+            for w in words:
+                h = int(hashlib.md5(w.encode('utf-8')).hexdigest(), 16)
+                idx = h % 128
+                vec[idx] += 1.0
+            norm = sum(x**2 for x in vec)**0.5
+            if norm > 0:
+                vec = [x / norm for x in vec]
+            embeddings.append(vec)
+        return embeddings
 
 class ReconciliationMemory:
     """
@@ -9,7 +31,11 @@ class ReconciliationMemory:
     """
     def __init__(self, persist_dir: str = "./chroma_data"):
         self.client = chromadb.PersistentClient(path=persist_dir)
-        self.collection = self.client.get_or_create_collection("resolved_discrepancies")
+        self.collection = self.client.get_or_create_collection(
+            name="resolved_discrepancies",
+            embedding_function=SimpleHashEmbeddingFunction()
+        )
+
 
     def add_resolved_case(self, case: DiscrepancyCase) -> None:
         """
