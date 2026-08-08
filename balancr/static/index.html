@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Balancr — Autonomous Payment Reconciliation</title>
+  <meta name="description" content="Balancr is an autonomous payment reconciliation agent that detects discrepancies between payment gateways, banks, and internal ledgers." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary:   #0A0E1A;
+      --bg-card:      #111827;
+      --bg-card-2:    #1A2235;
+      --border:       #1E2D45;
+      --accent-blue:  #3B82F6;
+      --accent-cyan:  #06B6D4;
+      --accent-green: #10B981;
+      --accent-red:   #EF4444;
+      --accent-amber: #F59E0B;
+      --text-primary: #F0F4FF;
+      --text-muted:   #8B9DC3;
+      --text-label:   #64748B;
+      --glow-blue:    0 0 20px rgba(59,130,246,0.3);
+      --radius:       12px;
+      --transition:   0.25s ease;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ─── TOP NAV ─────────────────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 64px;
+      background: rgba(10,14,26,0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      letter-spacing: -0.3px;
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.6; transform: scale(1.3); }
+    }
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────────── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ─── PAGE HEADER ─────────────────────────────────────────────── */
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; }
+    .page-header p  { color: var(--text-muted); margin-top: 4px; font-size: 0.9rem; }
+
+    /* ─── METRICS STRIP ───────────────────────────────────────────── */
+    .metrics-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .metric-card:hover { border-color: var(--accent-blue); box-shadow: var(--glow-blue); }
+    .metric-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-label); margin-bottom: 8px; }
+    .metric-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .metric-value.green { color: var(--accent-green); }
+    .metric-value.red   { color: var(--accent-red); }
+    .metric-value.amber { color: var(--accent-amber); }
+    .metric-value.blue  { color: var(--accent-blue); }
+    .metric-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── MAIN GRID ───────────────────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 960px) { .main-grid { grid-template-columns: 1fr; } }
+
+    /* ─── UPLOAD PANEL ────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem;
+    }
+    .panel-icon.blue   { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+    .panel-icon.cyan   { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+    .panel-icon.green  { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+    .panel-title { font-weight: 600; font-size: 0.9rem; }
+    .panel-body { padding: 20px; }
+
+    /* ─── DROP ZONES ──────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 18px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent-blue);
+      background: rgba(59,130,246,0.05);
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-zone-label { font-size: 0.78rem; color: var(--text-muted); }
+    .drop-zone-name  { font-size: 0.82rem; font-weight: 500; color: var(--text-primary); margin-top: 4px; }
+    .drop-icon { font-size: 1.4rem; margin-bottom: 4px; }
+    .drop-zone.has-file { border-color: var(--accent-green); border-style: solid; }
+    .drop-zone.has-file .drop-icon::before { content: "✓"; color: var(--accent-green); }
+
+    .run-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--transition), transform var(--transition);
+      margin-top: 8px;
+      letter-spacing: 0.2px;
+    }
+    .run-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .run-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ─── PROGRESS BAR ────────────────────────────────────────────── */
+    .progress-wrap { margin-top: 14px; display: none; }
+    .progress-wrap.visible { display: block; }
+    .progress-bar-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+    .progress-label { font-size: 0.76rem; color: var(--text-muted); margin-top: 6px; }
+
+    /* ─── CASES TABLE PANEL ───────────────────────────────────────── */
+    .cases-panel { flex: 1; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text-label);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(30,45,69,0.5);
+      transition: background var(--transition);
+    }
+    tbody tr:hover { background: var(--bg-card-2); }
+    tbody td { padding: 11px 14px; color: var(--text-primary); vertical-align: middle; }
+
+    /* ─── BADGES ──────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .badge.matched   { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+    .badge.discrepancy { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+    .badge.unmatched { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+    .badge.timing    { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+    .badge.partial   { background: rgba(239,68,68,0.12); color: var(--accent-red); }
+    .badge.missing   { background: rgba(245,158,11,0.12); color: var(--accent-amber); }
+    .badge.duplicate { background: rgba(168,85,247,0.15); color: #a855f7; }
+
+    /* ─── RESOLVE BUTTON ──────────────────────────────────────────── */
+    .resolve-btn {
+      background: transparent;
+      border: 1px solid var(--accent-blue);
+      color: var(--accent-blue);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .resolve-btn:hover { background: var(--accent-blue); color: white; }
+
+    /* ─── EMPTY STATE ─────────────────────────────────────────────── */
+    .empty-state {
+      padding: 60px 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+    .empty-title { font-size: 0.95rem; font-weight: 500; }
+    .empty-sub   { font-size: 0.8rem; margin-top: 4px; }
+
+    /* ─── MODAL ───────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; }
+    .modal-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; }
+    .modal label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-label); margin-bottom: 6px; margin-top: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .modal select, .modal textarea {
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .modal select:focus, .modal textarea:focus { border-color: var(--accent-blue); }
+    .modal textarea { resize: vertical; min-height: 90px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel {
+      flex: 1; padding: 10px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted);
+      border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+      transition: border-color var(--transition);
+    }
+    .btn-cancel:hover { border-color: var(--text-muted); }
+    .btn-confirm {
+      flex: 1; padding: 10px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      color: white; border: none; border-radius: 8px;
+      cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      transition: opacity var(--transition);
+    }
+    .btn-confirm:hover { opacity: 0.85; }
+
+    /* ─── TOAST ───────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 18px;
+      font-size: 0.82rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      z-index: 300;
+      max-width: 320px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--accent-green); }
+    .toast.error   { border-left: 3px solid var(--accent-red); }
+
+    /* ─── SCROLLBAR ───────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-label); }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand">
+    <div class="brand-dot"></div>
+    Balancr
+  </div>
+  <div class="nav-status">
+    <div class="status-dot"></div>
+    Agent Online
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="container">
+  <div class="page-header">
+    <h1>Reconciliation Dashboard</h1>
+    <p>Upload transaction sources, run the autonomous agent, and review classified discrepancies.</p>
+  </div>
+
+  <!-- METRICS STRIP -->
+  <div class="metrics-strip">
+    <div class="metric-card">
+      <div class="metric-label">Total Processed</div>
+      <div id="m-total" class="metric-value blue">—</div>
+      <div class="metric-sub">transactions ingested</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Exact Matches</div>
+      <div id="m-matched" class="metric-value green">—</div>
+      <div class="metric-sub">3-way confirmed</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Anomalies</div>
+      <div id="m-anomalies" class="metric-value amber">—</div>
+      <div class="metric-sub">flagged by agent</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Match Rate</div>
+      <div id="m-rate" class="metric-value blue">—</div>
+      <div class="metric-sub">effective reconciliation</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: UPLOAD PANEL -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-icon blue">+</div>
+          <span class="panel-title">Upload Data Sources</span>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">
+            Upload CSVs from your payment gateway, bank statement, and internal ledger to begin reconciliation.
+          </p>
+
+          <div class="drop-zone" id="dz-gateway" ondragover="handleDragOver(event,'dz-gateway')" ondragleave="handleDragLeave('dz-gateway')" ondrop="handleDrop(event,'gateway')">
+            <input type="file" id="file-gateway" accept=".csv" onchange="handleFileSelect('gateway', this)" />
+            <div class="drop-icon">G</div>
+            <div class="drop-zone-label">Gateway CSV (Wompi / Stripe / MercadoPago)</div>
+            <div class="drop-zone-name" id="name-gateway">Drag file or click to select</div>
+          </div>
+
+          <div class="drop-zone" id="dz-bank" ondragover="handleDragOver(event,'dz-bank')" ondragleave="handleDragLeave('dz-bank')" ondrop="handleDrop(event,'bank')">
+            <input type="file" id="file-bank" accept=".csv" onchange="handleFileSelect('bank', this)" />
+            <div class="drop-icon">B</div>
+            <div class="drop-zone-label">Bank Statement CSV</div>
+            <div class="drop-zone-name" id="name-bank">Drag file or click to select</div>
+          </div>
+
+          <div class="drop-zone" id="dz-ledger" ondragover="handleDragOver(event,'dz-ledger')" ondragleave="handleDragLeave('dz-ledger')" ondrop="handleDrop(event,'ledger')">
+            <input type="file" id="file-ledger" accept=".csv" onchange="handleFileSelect('ledger', this)" />
+            <div class="drop-icon">L</div>
+            <div class="drop-zone-label">Internal Ledger DB CSV</div>
+            <div class="drop-zone-name" id="name-ledger">Drag file or click to select</div>
+          </div>
+
+          <button class="run-btn" id="run-btn" onclick="runReconciliation()" disabled>
+            Run Autonomous Reconciliation
+          </button>
+
+          <div class="progress-wrap" id="progress-wrap">
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-label" id="progress-label">Initializing agent...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: CASES TABLE PANEL -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon cyan">~</div>
+        <span class="panel-title">Discrepancy Cases</span>
+      </div>
+      <div id="cases-content">
+        <div class="empty-state">
+          <div class="empty-icon">□</div>
+          <div class="empty-title">No run executed yet</div>
+          <div class="empty-sub">Upload your data sources and run the agent to see results.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RESOLVE MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Manual Case Resolution</div>
+    <div class="modal-sub" id="modal-case-id">Case ID: —</div>
+
+    <label for="modal-type">Classification</label>
+    <select id="modal-type">
+      <option value="TIMING_MISMATCH">TIMING_MISMATCH — Clear as valid timing lag</option>
+      <option value="PARTIAL_AMOUNT">PARTIAL_AMOUNT — Amount discrepancy</option>
+      <option value="MISSING_COUNTERPART">MISSING_COUNTERPART — No match found</option>
+      <option value="DUPLICATE">DUPLICATE — Duplicate transaction detected</option>
+      <option value="UNKNOWN">UNKNOWN — Requires further investigation</option>
+    </select>
+
+    <label for="modal-notes">Resolution Notes</label>
+    <textarea id="modal-notes" placeholder="Describe the justification and action taken for this resolution..."></textarea>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" onclick="submitResolution()">Confirm Resolution</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = '';  // same-origin
+
+  const files = { gateway: null, bank: null, ledger: null };
+  let activeCaseId = null;
+
+  // ─── FILE HANDLING ─────────────────────────────────────────────────
+  function handleFileSelect(source, input) {
+    if (input.files && input.files[0]) {
+      files[source] = input.files[0];
+      document.getElementById('name-' + source).textContent = input.files[0].name;
+      document.getElementById('dz-' + source).classList.add('has-file');
+      checkRunReady();
+    }
+  }
+  function handleDragOver(e, id) {
+    e.preventDefault();
+    document.getElementById(id).classList.add('drag-over');
+  }
+  function handleDragLeave(id) {
+    document.getElementById(id).classList.remove('drag-over');
+  }
+  function handleDrop(e, source) {
+    e.preventDefault();
+    const id = 'dz-' + source;
+    document.getElementById(id).classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) {
+      files[source] = f;
+      document.getElementById('name-' + source).textContent = f.name;
+      document.getElementById(id).classList.add('has-file');
+      checkRunReady();
+    }
+  }
+  function checkRunReady() {
+    const ready = files.gateway && files.bank && files.ledger;
+    document.getElementById('run-btn').disabled = !ready;
+  }
+
+  // ─── RUN RECONCILIATION ─────────────────────────────────────────────
+  async function runReconciliation() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Running Agent...';
+
+    const pw = document.getElementById('progress-wrap');
+    const pf = document.getElementById('progress-fill');
+    const pl = document.getElementById('progress-label');
+    pw.classList.add('visible');
+
+    const steps = [
+      [20, 'Ingesting gateway transactions...'],
+      [40, 'Ingesting bank statement...'],
+      [60, 'Running three-way matching engine...'],
+      [80, 'Classifying anomalies with LLM agent...'],
+      [95, 'Compiling results...'],
+    ];
+    let si = 0;
+    const stepInterval = setInterval(() => {
+      if (si < steps.length) {
+        pf.style.width = steps[si][0] + '%';
+        pl.textContent = steps[si][1];
+        si++;
+      }
+    }, 700);
+
+    try {
+      const form = new FormData();
+      form.append('gateway_file', files.gateway);
+      form.append('bank_file', files.bank);
+      form.append('ledger_file', files.ledger);
+
+      const resp = await fetch(API + '/api/reconcile', { method: 'POST', body: form });
+      clearInterval(stepInterval);
+      pf.style.width = '100%';
+      pl.textContent = 'Run complete.';
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || 'Server error');
+      }
+
+      const data = await resp.json();
+      updateMetrics(data.summary);
+      renderCases(data.cases);
+      showToast('Reconciliation completed successfully.', 'success');
+    } catch (err) {
+      clearInterval(stepInterval);
+      pf.style.width = '0%';
+      pl.textContent = 'Run failed.';
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Run Autonomous Reconciliation';
+        pw.classList.remove('visible');
+        pf.style.width = '0%';
+      }, 2500);
+    }
+  }
+
+  // ─── UPDATE METRICS ─────────────────────────────────────────────────
+  function updateMetrics(s) {
+    document.getElementById('m-total').textContent     = s.total_processed;
+    document.getElementById('m-matched').textContent   = s.exact_matches;
+    document.getElementById('m-anomalies').textContent = s.anomalies_count;
+    document.getElementById('m-rate').textContent      = s.match_rate + '%';
+  }
+
+  // ─── RENDER CASES TABLE ─────────────────────────────────────────────
+  function renderCases(cases) {
+    const container = document.getElementById('cases-content');
+    if (!cases.length) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">✓</div>
+        <div class="empty-title">No discrepancies detected</div>
+        <div class="empty-sub">All transactions reconcile successfully.</div>
+      </div>`;
+      return;
+    }
+
+    const rows = cases.map(c => {
+      const ref = (c.gateway_tx && c.gateway_tx.reference) || (c.bank_tx && c.bank_tx.reference) || 'N/A';
+      const gAmt = c.gateway_tx ? `${c.gateway_tx.amount} ${c.gateway_tx.currency}` : 'N/A';
+      const bAmt = c.bank_tx ? `${c.bank_tx.amount} ${c.bank_tx.currency}` : 'N/A';
+
+      return `<tr>
+        <td style="font-family:monospace;font-size:0.75rem;color:var(--text-muted)">${c.id.slice(0,12)}...</td>
+        <td>${ref}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td>${typeBadge(c.discrepancy_type)}</td>
+        <td>${gAmt}</td>
+        <td>${bAmt}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:0.77rem">${c.explanation || '—'}</td>
+        <td><button class="resolve-btn" id="btn-${c.id}" onclick="openModal('${c.id}')">Resolve</button></td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `<div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case ID</th>
+            <th>Reference</th>
+            <th>Status</th>
+            <th>Category</th>
+            <th>Gateway Amt</th>
+            <th>Bank Amt</th>
+            <th>Explanation</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function statusBadge(s) {
+    const m = { MATCHED:'matched', DISCREPANCY:'discrepancy', UNMATCHED:'unmatched' };
+    return `<span class="badge ${m[s]||'unmatched'}">${s}</span>`;
+  }
+  function typeBadge(t) {
+    if (!t) return '—';
+    const m = { TIMING_MISMATCH:'timing', PARTIAL_AMOUNT:'partial', MISSING_COUNTERPART:'missing', DUPLICATE:'duplicate' };
+    return `<span class="badge ${m[t]||''}">${t.replace('_',' ')}</span>`;
+  }
+
+  // ─── MODAL ─────────────────────────────────────────────────────────
+  function openModal(caseId) {
+    activeCaseId = caseId;
+    document.getElementById('modal-case-id').textContent = 'Case ID: ' + caseId;
+    document.getElementById('modal-notes').value = '';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    activeCaseId = null;
+  }
+  document.getElementById('modal-overlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  async function submitResolution() {
+    if (!activeCaseId) return;
+    const type  = document.getElementById('modal-type').value;
+    const notes = document.getElementById('modal-notes').value.trim();
+    if (!notes) { showToast('Please enter resolution notes.', 'error'); return; }
+
+    try {
+      const resp = await fetch(API + '/api/cases/' + activeCaseId + '/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discrepancy_type: type, explanation: notes })
+      });
+      if (!resp.ok) throw new Error('Failed to resolve case.');
+      closeModal();
+      showToast('Case resolved and persisted to memory.', 'success');
+      // Reload cases list
+      await loadCases();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function loadCases() {
+    try {
+      const resp = await fetch(API + '/api/cases');
+      if (!resp.ok) return;
+      const cases = await resp.json();
+      if (cases.length) renderCases(cases);
+    } catch (_) {}
+  }
+
+  // ─── TOAST ─────────────────────────────────────────────────────────
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+</script>
+</body>
+</html>
