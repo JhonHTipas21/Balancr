@@ -1,3 +1,4 @@
 docs: format api models with black standard conventions
 refactor: extract redundant configuration setup to centralized block
 docs: add inline comments explaining three-way match thresholding
+style: standardize error message formatting in reconciliation exceptions
