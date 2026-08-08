@@ -1,0 +1,6 @@
+bank_tx_id,value,currency,transaction_date,bank_reference
+bk_tx_001,-100.00,USD,2026-08-01 15:00:00,ORD_001
+bk_tx_002,-250.00,USD,2026-08-03 09:00:00,ORD_002
+bk_tx_003,-475.00,USD,2026-08-02 17:30:00,ORD_003
+bk_tx_004,-80.00,USD,2026-08-03 11:00:00,ORD_004
+bk_tx_006,-150.00,USD,2026-08-05 08:30:00,DEP_999
