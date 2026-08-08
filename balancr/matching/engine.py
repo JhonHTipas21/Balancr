@@ -253,4 +253,73 @@ class ReconciliationEngine:
                     matched_bank_ids.add(b_tx.id)
                     matched_ledger_ids.add(l_tx.id)
 
+            # 2-Way Match: Gateway + Bank, missing Ledger
+            elif len(g_list) == 1 and len(b_list) == 1 and len(l_list) == 0:
+                g_tx = g_list[0]
+                b_tx = b_list[0]
+                amounts_match = abs(g_tx.amount) == abs(b_tx.amount)
+                
+                exp = "Gateway-Bank match found, but missing counterpart in Ledger DB."
+                if not amounts_match:
+                    exp = f"Gateway-Bank reference match, but amounts differ (G={g_tx.amount}, B={b_tx.amount}) and missing Ledger counterpart."
+                
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=g_tx,
+                        transaction_bank=b_tx,
+                        status=ReconciliationStatus.DISCREPANCY,
+                        discrepancy_type=DiscrepancyType.PARTIAL_AMOUNT if not amounts_match else DiscrepancyType.MISSING_COUNTERPART,
+                        explanation=exp
+                    )
+                )
+                matched_gateway_ids.add(g_tx.id)
+                matched_bank_ids.add(b_tx.id)
+
+            # 2-Way Match: Gateway + Ledger, missing Bank
+            elif len(g_list) == 1 and len(l_list) == 1 and len(b_list) == 0:
+                g_tx = g_list[0]
+                l_tx = l_list[0]
+                amounts_match = abs(g_tx.amount) == abs(l_tx.amount)
+                
+                exp = f"Gateway-Ledger match found (Ledger ID: {l_tx.id}), but missing counterpart in Bank statement."
+                if not amounts_match:
+                    exp = f"Gateway-Ledger reference match, but amounts differ (G={g_tx.amount}, L={l_tx.amount}) and missing Bank counterpart."
+                    
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=g_tx,
+                        transaction_bank=None,
+                        status=ReconciliationStatus.DISCREPANCY,
+                        discrepancy_type=DiscrepancyType.PARTIAL_AMOUNT if not amounts_match else DiscrepancyType.MISSING_COUNTERPART,
+                        explanation=exp
+                    )
+                )
+                matched_gateway_ids.add(g_tx.id)
+                matched_ledger_ids.add(l_tx.id)
+
+            # 2-Way Match: Bank + Ledger, missing Gateway
+            elif len(b_list) == 1 and len(l_list) == 1 and len(g_list) == 0:
+                b_tx = b_list[0]
+                l_tx = l_list[0]
+                amounts_match = abs(b_tx.amount) == abs(l_tx.amount)
+                
+                exp = f"Bank-Ledger match found (Ledger ID: {l_tx.id}), but missing counterpart in Gateway."
+                if not amounts_match:
+                    exp = f"Bank-Ledger reference match, but amounts differ (B={b_tx.amount}, L={l_tx.amount}) and missing Gateway counterpart."
+                    
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=None,
+                        transaction_bank=b_tx,
+                        status=ReconciliationStatus.DISCREPANCY,
+                        discrepancy_type=DiscrepancyType.PARTIAL_AMOUNT if not amounts_match else DiscrepancyType.MISSING_COUNTERPART,
+                        explanation=exp
+                    )
+                )
+                matched_bank_ids.add(b_tx.id)
+                matched_ledger_ids.add(l_tx.id)
+
         return matched_3way, discrepancies
