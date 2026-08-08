@@ -10,10 +10,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 class ReconciliationReportGenerator:
     """
     Generates human-readable reconciliation reports in both Markdown and PDF formats.
+    Updated for three-way (Gateway vs Bank vs Ledger) reconciliation runs.
     """
     @staticmethod
     def generate_markdown_report(
-        matched_pairs: List[Tuple[CanonicalTransaction, CanonicalTransaction]],
+        matched_pairs: List[Tuple[CanonicalTransaction, CanonicalTransaction, CanonicalTransaction]],
         resolved_cases: List[DiscrepancyCase]
     ) -> str:
         """
@@ -22,7 +23,7 @@ class ReconciliationReportGenerator:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         total_matched = len(matched_pairs)
         total_anomalies = len(resolved_cases)
-        total_processed = total_matched * 2 + sum(
+        total_processed = total_matched * 3 + sum(
             1 for c in resolved_cases if (c.transaction_gateway is not None) or (c.transaction_bank is not None)
         )
         
@@ -37,7 +38,7 @@ class ReconciliationReportGenerator:
         md.append("")
         md.append("## Executive Summary")
         md.append(f"- **Total Input Records Evaluated:** {total_processed}")
-        md.append(f"- **Deterministic Exact Matches:** {total_matched} pairs")
+        md.append(f"- **Deterministic Exact Matches:** {total_matched} groups (3-way)")
         md.append(f"- **Anomalies Investigated by LLM:** {total_anomalies}")
         md.append(f"  - *Timing Mismatches Cleared:* {resolved_ok}")
         md.append(f"  - *Outstanding Discrepancies:* {total_anomalies - resolved_ok}")
@@ -46,11 +47,11 @@ class ReconciliationReportGenerator:
         
         md.append("## 1. Resolved Timing Mismatches & Matches")
         if total_matched > 0 or resolved_ok > 0:
-            md.append("| Reference | Source Gateway ID | Bank TX ID | Amount | Status | Details |")
-            md.append("|---|---|---|---|---|---|")
+            md.append("| Reference | Source Gateway ID | Bank TX ID | Ledger TX ID | Amount | Status | Details |")
+            md.append("|---|---|---|---|---|---|---|")
             # Exact matches
-            for g_tx, b_tx in matched_pairs:
-                md.append(f"| {g_tx.reference} | {g_tx.id} | {b_tx.id} | {g_tx.amount} {g_tx.currency} | MATCHED | Deterministic exact match |")
+            for g_tx, b_tx, l_tx in matched_pairs:
+                md.append(f"| {g_tx.reference} | {g_tx.id} | {b_tx.id} | {l_tx.id} | {g_tx.amount} {g_tx.currency} | MATCHED | Deterministic 3-way match |")
             # LLM cleared timing mismatches
             for c in resolved_cases:
                 if c.status == ReconciliationStatus.MATCHED:
@@ -59,7 +60,7 @@ class ReconciliationReportGenerator:
                     ref = c.transaction_gateway.reference if c.transaction_gateway else (c.transaction_bank.reference if c.transaction_bank else "N/A")
                     amount = c.transaction_gateway.amount if c.transaction_gateway else (c.transaction_bank.amount if c.transaction_bank else 0.0)
                     currency = c.transaction_gateway.currency if c.transaction_gateway else (c.transaction_bank.currency if c.transaction_bank else "USD")
-                    md.append(f"| {ref} | {g_id} | {b_id} | {amount} {currency} | CLEARED | {c.explanation} |")
+                    md.append(f"| {ref} | {g_id} | {b_id} | N/A | {amount} {currency} | CLEARED | {c.explanation} |")
         else:
             md.append("*No successful matches recorded in this run.*")
         md.append("")
@@ -85,7 +86,7 @@ class ReconciliationReportGenerator:
 
     @staticmethod
     def generate_pdf_report(
-        matched_pairs: List[Tuple[CanonicalTransaction, CanonicalTransaction]],
+        matched_pairs: List[Tuple[CanonicalTransaction, CanonicalTransaction, CanonicalTransaction]],
         resolved_cases: List[DiscrepancyCase],
         output_path: str
     ) -> None:
@@ -170,7 +171,7 @@ class ReconciliationReportGenerator:
         metrics_data = [
             [
                 Paragraph("<b>Deterministic Matches</b>", body_style),
-                Paragraph(f"{total_matched} pairs", body_style),
+                Paragraph(f"{total_matched} groups", body_style),
                 Paragraph("<b>LLM Anomalies Analyzed</b>", body_style),
                 Paragraph(f"{total_anomalies}", body_style),
             ],
@@ -196,17 +197,18 @@ class ReconciliationReportGenerator:
         # Section 1: Resolved Records
         story.append(Paragraph("1. Reconciled and Cleared Transactions", section_style))
         
-        resolved_headers = ["Reference", "Gateway ID", "Bank ID", "Amount", "Cleared Details"]
+        resolved_headers = ["Reference", "Gateway ID", "Bank ID", "Ledger ID", "Amount", "Cleared Details"]
         resolved_rows = [[Paragraph(h, table_header_style) for h in resolved_headers]]
         
         # Populate exact matches
-        for g_tx, b_tx in matched_pairs:
+        for g_tx, b_tx, l_tx in matched_pairs:
             resolved_rows.append([
                 Paragraph(g_tx.reference or "N/A", table_cell_style),
                 Paragraph(g_tx.id, table_cell_style),
                 Paragraph(b_tx.id, table_cell_style),
+                Paragraph(l_tx.id, table_cell_style),
                 Paragraph(f"{g_tx.amount} {g_tx.currency}", table_cell_style),
-                Paragraph("Exact match confirmed.", table_cell_style),
+                Paragraph("Exact 3-way match confirmed.", table_cell_style),
             ])
             
         # Populate timing matches
@@ -221,12 +223,13 @@ class ReconciliationReportGenerator:
                     Paragraph(ref, table_cell_style),
                     Paragraph(g_id, table_cell_style),
                     Paragraph(b_id, table_cell_style),
+                    Paragraph("N/A", table_cell_style),
                     Paragraph(f"{amount} {currency}", table_cell_style),
                     Paragraph(c.explanation or "", table_cell_style),
                 ])
                 
         if len(resolved_rows) > 1:
-            resolved_table = Table(resolved_rows, colWidths=[70, 70, 70, 80, 230])
+            resolved_table = Table(resolved_rows, colWidths=[65, 65, 65, 65, 75, 185])
             resolved_table.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,0), primary_color),
                 ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
