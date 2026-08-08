@@ -55,3 +55,14 @@ Navigate to `http://127.0.0.1:8000` to access the drag-and-drop dashboard interf
 * **`balancr/notifications/`**: Dispatch adapters for webhooks and emails.
 * **`balancr/reporting/`**: Generators for Markdown and PDF summary reports.
 * **`balancr/api/`**: The FastAPI server and single-page application dashboard.
+
+## Testing
+
+The project uses `pytest` for unit and integration testing. Tests are located in the `tests/` directory.
+
+To run the entire test suite:
+```bash
+pytest -v
+```
+
+This covers unit tests for normalizers, the deterministic matching engine, mock integrations for LLMs, local ChromaDB instance, notifications dispatch, and the FastAPI application routes.
