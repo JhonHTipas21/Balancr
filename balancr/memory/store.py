@@ -2,14 +2,18 @@ import os
 import hashlib
 from typing import List, Dict, Any, Optional
 import chromadb
+from chromadb import EmbeddingFunction
 from chromadb.api.types import Documents, Embeddings
 from balancr.canonical import DiscrepancyCase
 
-class SimpleHashEmbeddingFunction:
+class SimpleHashEmbeddingFunction(EmbeddingFunction):
     """
     100% offline, lightweight hashing-based embedding function.
     Eliminates downloading heavy models from Hugging Face during test/runs.
     """
+    def __init__(self) -> None:
+        super().__init__()
+
     def __call__(self, input: Documents) -> Embeddings:
         embeddings = []
         for doc in input:
@@ -24,6 +28,19 @@ class SimpleHashEmbeddingFunction:
                 vec = [x / norm for x in vec]
             embeddings.append(vec)
         return embeddings
+
+    @classmethod
+    def name(cls) -> str:
+        return "SimpleHashEmbeddingFunction"
+
+    def get_config(self) -> Dict[str, Any]:
+        return {}
+
+    @staticmethod
+    def build_from_config(config: Dict[str, Any]) -> "SimpleHashEmbeddingFunction":
+        return SimpleHashEmbeddingFunction()
+
+
 
 class ReconciliationMemory:
     """
