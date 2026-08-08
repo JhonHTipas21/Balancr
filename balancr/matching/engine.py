@@ -322,4 +322,65 @@ class ReconciliationEngine:
                 matched_bank_ids.add(b_tx.id)
                 matched_ledger_ids.add(l_tx.id)
 
+            # Scenario 3: Duplicate references in three-way comparison
+            elif len(g_list) > 1 or len(b_list) > 1 or len(l_list) > 1:
+                explanation = f"Duplicate references found: {len(g_list)} in gateway, {len(b_list)} in bank, {len(l_list)} in ledger."
+                for g_tx in g_list:
+                    matched_gateway_ids.add(g_tx.id)
+                for b_tx in b_list:
+                    matched_bank_ids.add(b_tx.id)
+                for l_tx in l_list:
+                    matched_ledger_ids.add(l_tx.id)
+
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=g_list[0] if g_list else None,
+                        transaction_bank=b_list[0] if b_list else None,
+                        status=ReconciliationStatus.DISCREPANCY,
+                        discrepancy_type=DiscrepancyType.DUPLICATE,
+                        explanation=explanation
+                    )
+                )
+
+        # Scenario 4: Orphan records (missing all counterparts)
+        for g_tx in gateway_txs:
+            if g_tx.id not in matched_gateway_ids:
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=g_tx,
+                        transaction_bank=None,
+                        status=ReconciliationStatus.UNMATCHED,
+                        discrepancy_type=DiscrepancyType.MISSING_COUNTERPART,
+                        explanation="Gateway transaction has no bank or ledger counterpart."
+                    )
+                )
+
+        for b_tx in bank_txs:
+            if b_tx.id not in matched_bank_ids:
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=None,
+                        transaction_bank=b_tx,
+                        status=ReconciliationStatus.UNMATCHED,
+                        discrepancy_type=DiscrepancyType.MISSING_COUNTERPART,
+                        explanation="Bank transaction has no gateway or ledger counterpart."
+                    )
+                )
+
+        for l_tx in ledger_txs:
+            if l_tx.id not in matched_ledger_ids:
+                discrepancies.append(
+                    DiscrepancyCase(
+                        id=str(uuid.uuid4()),
+                        transaction_gateway=None,
+                        transaction_bank=None,
+                        status=ReconciliationStatus.UNMATCHED,
+                        discrepancy_type=DiscrepancyType.MISSING_COUNTERPART,
+                        explanation=f"Ledger transaction {l_tx.id} has no gateway or bank counterpart."
+                    )
+                )
+
         return matched_3way, discrepancies
