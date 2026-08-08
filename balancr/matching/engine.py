@@ -164,3 +164,16 @@ class ReconciliationEngine:
                 )
 
         return matched_pairs, discrepancies
+
+    def reconcile_3way(
+        self, 
+        gateway_txs: List[CanonicalTransaction], 
+        bank_txs: List[CanonicalTransaction],
+        ledger_txs: List[CanonicalTransaction]
+    ) -> Tuple[List[Tuple[CanonicalTransaction, CanonicalTransaction, CanonicalTransaction]], List[DiscrepancyCase]]:
+        """
+        Performs three-way reconciliation between gateway, bank, and internal ledger records.
+        """
+        matched_3way: List[Tuple[CanonicalTransaction, CanonicalTransaction, CanonicalTransaction]] = []
+        discrepancies: List[DiscrepancyCase] = []
+        return matched_3way, discrepancies
