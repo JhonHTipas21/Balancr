@@ -7,3 +7,4 @@ docs: clarify ledger matching constraints in matching engine comments
 style: sort imports according to isort guidelines in api endpoints
 docs: add setup instructions for local chroma vector database
 refactor: simplify boolean condition checks in notification dispatchers
+docs: improve readability of pydantic discrepancy case schema
