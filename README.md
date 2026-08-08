@@ -28,3 +28,19 @@ Balancr is an autonomous agent for continuous payment reconciliation. It matches
    ```
 4. **Environment Variables**:
    Create a `.env` file and configure `GROQ_API_KEY`, `ALERT_WEBHOOK_URL`, and `ALERT_EMAIL_TO` if necessary.
+
+## Usage
+
+### CLI Execution
+Run the complete reconciliation flow from the terminal:
+```bash
+python3 -m balancr.main
+```
+This will parse mock files from `data/`, run the deterministic matcher, invoke the LLM agent for anomalies, send critical alerts, and generate Markdown/PDF reports in the `reports/` folder.
+
+### Web Dashboard
+Run the FastAPI web backend:
+```bash
+uvicorn balancr.api.app:app --reload
+```
+Navigate to `http://127.0.0.1:8000` to access the drag-and-drop dashboard interface for manual reconciliation.
