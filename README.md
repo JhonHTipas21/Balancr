@@ -44,3 +44,14 @@ Run the FastAPI web backend:
 uvicorn balancr.api.app:app --reload
 ```
 Navigate to `http://127.0.0.1:8000` to access the drag-and-drop dashboard interface for manual reconciliation.
+
+## Architecture
+
+* **`balancr/canonical.py`**: Defines the unified data models and discrepancy types using Pydantic.
+* **`balancr/normalizers/`**: Adapters for loading and parsing data from disparate CSV structures.
+* **`balancr/matching/`**: The deterministic matching engine that handles three-way exact matches.
+* **`balancr/agent/`**: LangGraph nodes and orchestrator for querying Groq LLMs.
+* **`balancr/memory/`**: The local ChromaDB vector store powered by a custom offline hashing embedding function.
+* **`balancr/notifications/`**: Dispatch adapters for webhooks and emails.
+* **`balancr/reporting/`**: Generators for Markdown and PDF summary reports.
+* **`balancr/api/`**: The FastAPI server and single-page application dashboard.
