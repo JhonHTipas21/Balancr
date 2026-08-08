@@ -5,3 +5,4 @@ style: standardize error message formatting in reconciliation exceptions
 docs: update parameter descriptions in bank csv normalizer
 docs: clarify ledger matching constraints in matching engine comments
 style: sort imports according to isort guidelines in api endpoints
+docs: add setup instructions for local chroma vector database
