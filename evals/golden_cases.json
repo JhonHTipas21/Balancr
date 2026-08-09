@@ -1,0 +1,167 @@
+[
+  {
+    "case_id": "CASE-001",
+    "description": "Exact match across all three sources",
+    "input": {
+      "gateway": {"id": "g_001", "amount": 150.00, "currency": "USD", "date": "2023-10-01T10:00:00Z", "reference": "ORD-1001"},
+      "bank": {"id": "b_001", "amount": -150.00, "currency": "USD", "date": "2023-10-01T10:05:00Z", "reference": "ORD-1001"},
+      "ledger": {"id": "l_001", "amount": 150.00, "currency": "USD", "date": "2023-10-01T10:02:00Z", "reference": "ORD-1001"}
+    },
+    "expected_output": "match"
+  },
+  {
+    "case_id": "CASE-002",
+    "description": "Timing mismatch: Bank settles 2 days later",
+    "input": {
+      "gateway": {"id": "g_002", "amount": 50.00, "currency": "USD", "date": "2023-10-01T15:30:00Z", "reference": "ORD-1002"},
+      "bank": {"id": "b_002", "amount": -50.00, "currency": "USD", "date": "2023-10-03T09:00:00Z", "reference": "ORD-1002"},
+      "ledger": {"id": "l_002", "amount": 50.00, "currency": "USD", "date": "2023-10-01T15:31:00Z", "reference": "ORD-1002"}
+    },
+    "expected_output": "timing"
+  },
+  {
+    "case_id": "CASE-003",
+    "description": "Partial amount: Gateway and ledger match, bank received slightly less (fee deducted)",
+    "input": {
+      "gateway": {"id": "g_003", "amount": 200.00, "currency": "USD", "date": "2023-10-01T12:00:00Z", "reference": "ORD-1003"},
+      "bank": {"id": "b_003", "amount": -195.50, "currency": "USD", "date": "2023-10-01T12:05:00Z", "reference": "ORD-1003"},
+      "ledger": {"id": "l_003", "amount": 200.00, "currency": "USD", "date": "2023-10-01T12:01:00Z", "reference": "ORD-1003"}
+    },
+    "expected_output": "discrepancia_critica"
+  },
+  {
+    "case_id": "CASE-004",
+    "description": "Missing in ledger: Gateway and bank match, but no ledger record",
+    "input": {
+      "gateway": {"id": "g_004", "amount": 75.25, "currency": "USD", "date": "2023-10-01T16:00:00Z", "reference": "ORD-1004"},
+      "bank": {"id": "b_004", "amount": -75.25, "currency": "USD", "date": "2023-10-01T16:10:00Z", "reference": "ORD-1004"},
+      "ledger": null
+    },
+    "expected_output": "discrepancia_critica"
+  },
+  {
+    "case_id": "CASE-005",
+    "description": "Duplicate exact match in gateway: Double charge",
+    "input": {
+      "gateway": [
+        {"id": "g_005a", "amount": 100.00, "currency": "USD", "date": "2023-10-01T08:00:00Z", "reference": "ORD-1005"},
+        {"id": "g_005b", "amount": 100.00, "currency": "USD", "date": "2023-10-01T08:00:05Z", "reference": "ORD-1005"}
+      ],
+      "bank": {"id": "b_005", "amount": -200.00, "currency": "USD", "date": "2023-10-02T09:00:00Z", "reference": "ORD-1005"},
+      "ledger": {"id": "l_005", "amount": 100.00, "currency": "USD", "date": "2023-10-01T08:00:02Z", "reference": "ORD-1005"}
+    },
+    "expected_output": "duplicado"
+  },
+  {
+    "case_id": "CASE-006",
+    "description": "Timing mismatch: Bank weekend settlement delay (3 days)",
+    "input": {
+      "gateway": {"id": "g_006", "amount": 350.00, "currency": "USD", "date": "2023-10-06T18:00:00Z", "reference": "ORD-1006"},
+      "bank": {"id": "b_006", "amount": -350.00, "currency": "USD", "date": "2023-10-09T09:00:00Z", "reference": "ORD-1006"},
+      "ledger": {"id": "l_006", "amount": 350.00, "currency": "USD", "date": "2023-10-06T18:01:00Z", "reference": "ORD-1006"}
+    },
+    "expected_output": "timing"
+  },
+  {
+    "case_id": "CASE-007",
+    "description": "Total amount mismatch: Gateway says 500, Bank says 50",
+    "input": {
+      "gateway": {"id": "g_007", "amount": 500.00, "currency": "USD", "date": "2023-10-01T14:00:00Z", "reference": "ORD-1007"},
+      "bank": {"id": "b_007", "amount": -50.00, "currency": "USD", "date": "2023-10-01T14:05:00Z", "reference": "ORD-1007"},
+      "ledger": {"id": "l_007", "amount": 500.00, "currency": "USD", "date": "2023-10-01T14:02:00Z", "reference": "ORD-1007"}
+    },
+    "expected_output": "discrepancia_critica"
+  },
+  {
+    "case_id": "CASE-008",
+    "description": "Missing in Bank: Payment processed in Gateway/Ledger but never settled",
+    "input": {
+      "gateway": {"id": "g_008", "amount": 120.00, "currency": "USD", "date": "2023-10-01T09:00:00Z", "reference": "ORD-1008"},
+      "bank": null,
+      "ledger": {"id": "l_008", "amount": 120.00, "currency": "USD", "date": "2023-10-01T09:01:00Z", "reference": "ORD-1008"}
+    },
+    "expected_output": "discrepancia_critica"
+  },
+  {
+    "case_id": "CASE-009",
+    "description": "Duplicate in Ledger: Accidental double entry internally",
+    "input": {
+      "gateway": {"id": "g_009", "amount": 80.00, "currency": "USD", "date": "2023-10-01T11:00:00Z", "reference": "ORD-1009"},
+      "bank": {"id": "b_009", "amount": -80.00, "currency": "USD", "date": "2023-10-01T11:05:00Z", "reference": "ORD-1009"},
+      "ledger": [
+        {"id": "l_009a", "amount": 80.00, "currency": "USD", "date": "2023-10-01T11:01:00Z", "reference": "ORD-1009"},
+        {"id": "l_009b", "amount": 80.00, "currency": "USD", "date": "2023-10-01T11:01:30Z", "reference": "ORD-1009"}
+      ]
+    },
+    "expected_output": "duplicado"
+  },
+  {
+    "case_id": "CASE-010",
+    "description": "Missing in Gateway: Unknown bank deposit matching a ledger entry",
+    "input": {
+      "gateway": null,
+      "bank": {"id": "b_010", "amount": -450.00, "currency": "USD", "date": "2023-10-01T13:00:00Z", "reference": "ORD-1010"},
+      "ledger": {"id": "l_010", "amount": 450.00, "currency": "USD", "date": "2023-10-01T12:55:00Z", "reference": "ORD-1010"}
+    },
+    "expected_output": "discrepancia_critica"
+  },
+  {
+    "case_id": "CASE-011",
+    "description": "Currency discrepancy: Bank settled in different currency equivalent",
+    "input": {
+      "gateway": {"id": "g_011", "amount": 100.00, "currency": "USD", "date": "2023-10-01T10:00:00Z", "reference": "ORD-1011"},
+      "bank": {"id": "b_011", "amount": -85.00, "currency": "EUR", "date": "2023-10-02T10:00:00Z", "reference": "ORD-1011"},
+      "ledger": {"id": "l_011", "amount": 100.00, "currency": "USD", "date": "2023-10-01T10:01:00Z", "reference": "ORD-1011"}
+    },
+    "expected_output": "discrepancia_critica"
+  },
+  {
+    "case_id": "CASE-012",
+    "description": "Exact match: Standard processing",
+    "input": {
+      "gateway": {"id": "g_012", "amount": 22.50, "currency": "USD", "date": "2023-10-01T07:15:00Z", "reference": "ORD-1012"},
+      "bank": {"id": "b_012", "amount": -22.50, "currency": "USD", "date": "2023-10-01T07:30:00Z", "reference": "ORD-1012"},
+      "ledger": {"id": "l_012", "amount": 22.50, "currency": "USD", "date": "2023-10-01T07:16:00Z", "reference": "ORD-1012"}
+    },
+    "expected_output": "match"
+  },
+  {
+    "case_id": "CASE-013",
+    "description": "Timing mismatch: Bank settles 1 day later",
+    "input": {
+      "gateway": {"id": "g_013", "amount": 99.99, "currency": "USD", "date": "2023-10-01T23:45:00Z", "reference": "ORD-1013"},
+      "bank": {"id": "b_013", "amount": -99.99, "currency": "USD", "date": "2023-10-02T09:00:00Z", "reference": "ORD-1013"},
+      "ledger": {"id": "l_013", "amount": 99.99, "currency": "USD", "date": "2023-10-01T23:46:00Z", "reference": "ORD-1013"}
+    },
+    "expected_output": "timing"
+  },
+  {
+    "case_id": "CASE-014",
+    "description": "Duplicate across all sources: System glitch created two identical orders",
+    "input": {
+      "gateway": [
+        {"id": "g_014a", "amount": 60.00, "currency": "USD", "date": "2023-10-01T17:00:00Z", "reference": "ORD-1014"},
+        {"id": "g_014b", "amount": 60.00, "currency": "USD", "date": "2023-10-01T17:00:00Z", "reference": "ORD-1014"}
+      ],
+      "bank": [
+        {"id": "b_014a", "amount": -60.00, "currency": "USD", "date": "2023-10-01T17:15:00Z", "reference": "ORD-1014"},
+        {"id": "b_014b", "amount": -60.00, "currency": "USD", "date": "2023-10-01T17:15:00Z", "reference": "ORD-1014"}
+      ],
+      "ledger": [
+        {"id": "l_014a", "amount": 60.00, "currency": "USD", "date": "2023-10-01T17:01:00Z", "reference": "ORD-1014"},
+        {"id": "l_014b", "amount": 60.00, "currency": "USD", "date": "2023-10-01T17:01:00Z", "reference": "ORD-1014"}
+      ]
+    },
+    "expected_output": "duplicado"
+  },
+  {
+    "case_id": "CASE-015",
+    "description": "Discrepancia crítica: Sign mismatch (Refund processed as charge)",
+    "input": {
+      "gateway": {"id": "g_015", "amount": -30.00, "currency": "USD", "date": "2023-10-01T19:00:00Z", "reference": "ORD-1015"},
+      "bank": {"id": "b_015", "amount": -30.00, "currency": "USD", "date": "2023-10-01T19:05:00Z", "reference": "ORD-1015"},
+      "ledger": {"id": "l_015", "amount": -30.00, "currency": "USD", "date": "2023-10-01T19:02:00Z", "reference": "ORD-1015"}
+    },
+    "expected_output": "match"
+  }
+]
