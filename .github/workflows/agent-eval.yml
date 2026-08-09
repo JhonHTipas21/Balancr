@@ -1,20 +1,27 @@
 name: Agent Evaluation (LangGraph)
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     paths:
       - 'balancr/agent/**'
-      - 'balancr/engine/**'
+      - 'balancr/canonical.py'
       - 'evals/**'
       - '.github/workflows/agent-eval.yml'
+      - 'requirements.txt'
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
-  evaluate-agent:
+  agent-evaluation:
     runs-on: ubuntu-latest
     env:
-      MIN_ACCURACY: "90.0"
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-
+      MIN_ACCURACY: "0.90"
+      PYTHONPATH: "."
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -28,73 +35,90 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || echo "No requirements.txt found yet"
-          pip install pydantic langgraph langchain-groq pytest
+          pip install -r requirements.txt
+          pip install pytest
 
       - name: Cache Agent/LLM Responses
         uses: actions/cache@v4
         with:
           path: .langchain_cache
-          key: agent-eval-${{ hashFiles('evals/golden_cases.json') }}
+          key: agent-eval-${{ hashFiles('evals/golden_cases.json', 'requirements.txt') }}
           restore-keys: |
             agent-eval-
+
+      - name: Run Structural Pytest (Offline mode)
+        run: |
+          EVAL_OFFLINE=true pytest tests/test_eval_runner.py -v
 
       - name: Run Golden Cases Evaluation
         id: run_eval
         env:
-          PYTHONPATH: .
+          # In forks, secrets are not available, so this will fall back to offline mode securely.
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python evals/run_eval.py
-        continue-on-error: true # We want to post the comment even if it fails
 
       - name: Post PR Comment with Results
+        if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
+            const summaryPath = process.env.GITHUB_STEP_SUMMARY || '';
+            let reportBody = "## Balancr Agent Evaluation <!-- balancr-agent-eval -->\n\n";
+            
             if (fs.existsSync('eval_results.json')) {
               const results = JSON.parse(fs.readFileSync('eval_results.json', 'utf8'));
-              
-              let body = `## 🤖 Agent Evaluation Results\n\n`;
-              body += `**Accuracy:** ${results.accuracy.toFixed(2)}%\n`;
-              body += `**Threshold:** ${results.min_accuracy.toFixed(2)}%\n`;
-              body += `**Status:** ${results.passed ? '✅ PASSED' : '❌ FAILED'}\n\n`;
+              reportBody += `| Metric | Value |\n`;
+              reportBody += `|--------|-------|\n`;
+              reportBody += `| Accuracy | ${(results.accuracy * 100).toFixed(1)}% |\n`;
+              reportBody += `| Threshold | ${(results.min_accuracy * 100).toFixed(1)}% |\n`;
+              reportBody += `| Status | **${results.passed ? '✅ PASSED' : '❌ FAILED'}** |\n`;
+              reportBody += `| Mode | ${results.offline_mode ? 'offline (structural)' : 'online (real LLM)'} |\n\n`;
               
               if (results.failures && results.failures.length > 0) {
-                body += `### Failed Cases\n\n`;
-                body += `| Case ID | Expected | Actual | Description |\n`;
-                body += `|---------|----------|--------|-------------|\n`;
+                reportBody += `### Failed Cases\n\n`;
+                reportBody += `| Case ID | Expected | Actual | Description |\n`;
+                reportBody += `|---------|----------|--------|-------------|\n`;
                 results.failures.forEach(f => {
-                  body += `| ${f.case_id} | \`${f.expected}\` | \`${f.actual}\` | ${f.description} |\n`;
+                  reportBody += `| ${f.case_id} | \`${f.expected_status}\` (\`${f.expected_discrepancy_type}\`) | \`${f.actual_status}\` (\`${f.actual_discrepancy_type}\`) | ${f.description} |\n`;
                 });
               } else {
-                body += `🎉 All golden cases passed correctly!\n`;
+                reportBody += `🎉 All golden cases passed correctly!\n`;
               }
-              
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: body
-              });
             } else {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `❌ Evaluation script failed to generate results artifact.`
-              });
+              reportBody += `❌ Evaluation script failed to generate results artifact.\n`;
             }
 
-      - name: Enforce Pass/Fail Status
-        run: |
-          if [ ! -f eval_results.json ]; then
-            echo "eval_results.json missing"
-            exit 1
-          fi
-          PASSED=$(jq -r '.passed' eval_results.json)
-          if [ "$PASSED" != "true" ]; then
-            echo "Evaluation failed threshold."
-            exit 1
-          fi
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('<!-- balancr-agent-eval -->')
+            );
+            
+            // Try to comment, fail gracefully if fork (secrets.GITHUB_TOKEN lacks write on PRs from forks by default)
+            try {
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: reportBody
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: reportBody
+                });
+              }
+            } catch (error) {
+              console.log("Could not post PR comment. This is normal for PRs from forks without write permissions.");
+              console.log(error);
+            }
