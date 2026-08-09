@@ -66,3 +66,27 @@ pytest -v
 ```
 
 This covers unit tests for normalizers, the deterministic matching engine, mock integrations for LLMs, local ChromaDB instance, notifications dispatch, and the FastAPI application routes.
+
+## Continuous Agent Evaluation (MLOps)
+
+Balancr includes a continuous regression evaluation pipeline to measure the accuracy and performance of the LangGraph anomaly classification agent.
+
+### Golden Dataset
+The evaluation is based on a curated dataset of golden cases (`evals/golden_cases.json`) that represents representative mock scenarios including:
+* Exact matching and timing mismatches.
+* Partial amounts and currency discrepancies.
+* Duplicate transactions and missing counterparts across gateways, banks, and ledgers.
+
+### Evaluation Runner
+The runner (`evals/run_eval.py`) executes the evaluation pipeline. It supports two modes:
+1. **Online Mode (Default)**: Leverages the configured Groq LLM provider (`llama-3.3-70b-versatile`) to classify anomalies and check matching accuracy.
+2. **Offline Mode (`EVAL_OFFLINE=true`)**: Monkey-patches the agent with deterministic mocks to verify pipeline orchestration structure without external network dependencies or LLM token costs.
+
+### CI/CD Workflow
+A GitHub Actions workflow (`.github/workflows/agent-eval.yml`) runs on every pull request and push to the main branch. The workflow:
+* Standardizes on a Python 3.11 environment.
+* Runs structural pytest checks under offline mode first.
+* Computes classification accuracy against the golden cases.
+* Publishes a summary report directly into the GitHub Actions run summary and updates the pull request comment with detailed accuracy metrics.
+* Enforces a minimum accuracy threshold (defaults to 90%), failing the build if a regression is detected.
+
